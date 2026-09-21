@@ -136,6 +136,7 @@ function cbrProxyPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
+    base: '/china-landed-cost/',
     plugins: [react(), tailwindcss(), aistudioMediaPlugin(), cbrProxyPlugin()],
     resolve: {
       alias: {
