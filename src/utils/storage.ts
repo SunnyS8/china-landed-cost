@@ -1,4 +1,6 @@
-import { CostComponent, Currency, ForwarderQuote } from '../types/logistics';
+import { CostComponent, Currency, ExchangeRates, ForwarderQuote } from '../types/logistics';
+import { toUsd } from './calculations';
+import { DEFAULT_RATES } from './cbrRate';
 
 export interface ParsedSnapshot {
   id: string;
@@ -169,7 +171,11 @@ export function deleteSnapshot(id: string) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 }
 
-export function compareSnapshots(oldSnap: ParsedSnapshot, newSnap: ParsedSnapshot): PriceChange[] {
+export function compareSnapshots(
+  oldSnap: ParsedSnapshot,
+  newSnap: ParsedSnapshot,
+  rates: ExchangeRates = DEFAULT_RATES,
+): PriceChange[] {
   const changes: PriceChange[] = [];
 
   newSnap.quotes.forEach(nq => {
@@ -177,8 +183,8 @@ export function compareSnapshots(oldSnap: ParsedSnapshot, newSnap: ParsedSnapsho
       o => o.forwarderName === nq.forwarderName && o.destination === nq.destination && o.routeType === nq.routeType
     );
     if (oq) {
-      const oldTotal = calcTotal(oq);
-      const newTotal = calcTotal(nq);
+      const oldTotal = calcTotal(oq, rates);
+      const newTotal = calcTotal(nq, rates);
       const diff = newTotal - oldTotal;
       if (Math.abs(diff) > 1) {
         changes.push({
@@ -196,26 +202,25 @@ export function compareSnapshots(oldSnap: ParsedSnapshot, newSnap: ParsedSnapsho
   return changes;
 }
 
-function calcTotal(q: ForwarderQuote): number {
-  const rate = 92.5; // approximation for comparison
-  const toUsd = (amt: number, cur: string) => cur === 'USD' ? amt : amt / rate;
+function calcTotal(q: ForwarderQuote, rates: ExchangeRates): number {
   return Math.round(
-    toUsd(q.oceanFreight.amount, q.oceanFreight.currency) +
-    toUsd(q.railFreight.amount, q.railFreight.currency) +
-    toUsd(q.truckDelivery.amount, q.truckDelivery.currency) +
-    toUsd(q.forwarderFee.amount, q.forwarderFee.currency) +
-    toUsd(q.terminalExpenses.amount, q.terminalExpenses.currency)
+    toUsd(q.oceanFreight, rates) +
+    toUsd(q.railFreight, rates) +
+    toUsd(q.truckDelivery, rates) +
+    toUsd(q.forwarderFee, rates) +
+    toUsd(q.terminalExpenses, rates)
   );
 }
 
 /** Сравнение текущих ставок с последним снимком — для уведомлений и графика */
 export function compareNewToLast(
   quotes: ForwarderQuote[],
-  prev: ParsedSnapshot | undefined
+  prev: ParsedSnapshot | undefined,
+  rates: ExchangeRates = DEFAULT_RATES,
 ): PriceChange[] {
   if (!prev) return [];
   const current: ParsedSnapshot = { id: 'current', timestamp: Date.now(), date: 'сейчас', source: 'текущие ставки', quotes, fileNames: [] };
-  return compareSnapshots(prev, current);
+  return compareSnapshots(prev, current, rates);
 }
 
 // --- Sync: export/import of all app settings between browsers ---

@@ -506,7 +506,7 @@ function rawRouteToQuote(raw: RawRoute, idx: number): ForwarderQuote {
     weightTons: raw.weightTons || 26,
     maxWeightTons: raw.maxWeightTons || 20,
     overweightRateRub: raw.overweightRateRub || 2000,
-    vatRate: raw.vatRate || 20,
+    vatRate: raw.vatRate ?? 20,
     oceanFreight: { amount: raw.freightUsd, currency: 'USD' },
     railFreight: { amount: raw.railRub, currency: 'RUB' },
     truckDelivery: { amount: raw.truckRub, currency: 'RUB' },

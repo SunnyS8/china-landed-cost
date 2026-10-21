@@ -22,6 +22,8 @@ const DEFAULT_PRODUCT: ProductQuote = {
 
 export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const invalidContainerM2 = !Number.isFinite(product.containerM2) || product.containerM2 <= 0;
+  const invalidContainerWeight = !Number.isFinite(product.containerWeightKg) || product.containerWeightKg <= 0;
 
   const update = (patch: Partial<ProductQuote>) => {
     onChange({ ...product, ...patch });
@@ -116,12 +118,14 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
               </label>
               <input
                 type="number"
-                min="0"
+                min="0.01"
                 step="10"
                 value={product.containerM2}
                 onChange={e => update({ containerM2: parseFloat(e.target.value) || 0 })}
-                className={inputClass}
+                aria-invalid={invalidContainerM2}
+                className={`${inputClass} ${invalidContainerM2 ? 'border-red-500' : ''}`}
               />
+              {invalidContainerM2 && <p className="mt-1 text-xs text-red-600" role="alert">Укажите площадь больше нуля.</p>}
             </div>
             <div>
               <label className={labelClass}>
@@ -144,12 +148,14 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
               </label>
               <input
                 type="number"
-                min="0"
+                min="0.01"
                 step="100"
                 value={product.containerWeightKg}
                 onChange={e => update({ containerWeightKg: parseFloat(e.target.value) || 0 })}
-                className={inputClass}
+                aria-invalid={invalidContainerWeight}
+                className={`${inputClass} ${invalidContainerWeight ? 'border-red-500' : ''}`}
               />
+              {invalidContainerWeight && <p className="mt-1 text-xs text-red-600" role="alert">Укажите вес больше нуля.</p>}
             </div>
             <div>
               <label className={labelClass}>
@@ -169,7 +175,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
             <div>
               <label className={labelClass}>
                 <FileText className="inline w-3 h-3 mr-1" />
-                Ставка НДС (%)
+                Ставка импортного НДС (%)
               </label>
               <input
                 type="number"
@@ -199,7 +205,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
       <div className="flex items-start gap-2 text-xs text-slate-500">
         <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <span>
-          Данные из калькулятора акустики: JinPeng/Xincongbang, HS 8708299000, пошлина 12%, НДС 22%.
+          Импортный НДС считается по ставке товара, НДС на российские услуги — по ставке выбранного перевозчика.
           Курс ЦБ используется для пересчёта юаней в рубли.
         </span>
       </div>

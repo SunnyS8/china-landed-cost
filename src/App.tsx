@@ -172,7 +172,7 @@ export default function App() {
     setHistory(hist);
     setQuotes(prev => [...imported, ...prev]);
     // history[0] после импорта — снимок этих же данных; сравниваем с историей до импорта
-    const changes = compareNewToLast(imported, hist[1]);
+    const changes = compareNewToLast(imported, hist[1], rates);
     if (changes.length > 0) setIsNotificationsOpen(true);
   };
 
@@ -233,8 +233,8 @@ export default function App() {
   const changeNotifications = useMemo<PriceChange[]>(() => {
     if (history.length === 0) return [];
     const baseline = history.length > 1 ? history[1] : history[0];
-    return compareNewToLast(quotes, baseline);
-  }, [quotes, history]);
+    return compareNewToLast(quotes, baseline, rates);
+  }, [quotes, history, rates]);
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans">
@@ -487,6 +487,7 @@ export default function App() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         onRestore={handleRestoreQuotes}
+        rates={rates}
       />
 
       {/* Footer */}

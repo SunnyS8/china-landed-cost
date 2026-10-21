@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductQuote, ForwarderQuote, ExchangeRates, LandedCost } from '../types/logistics';
-import { calculateLandedCost, calculateQuoteCost, formatRUB, toRub } from '../utils/calculations';
+import { calculateLandedCost, calculateQuoteCost, formatRUB, getLandedCostInputError, toRub } from '../utils/calculations';
 import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Plus, Upload } from 'lucide-react';
 
 interface Props {
@@ -77,10 +77,22 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
     );
   }
 
+  const inputError = getLandedCostInputError(product);
+  if (inputError) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900" role="alert">
+        <h2 className="font-bold">Невозможно рассчитать себестоимость</h2>
+        <p className="mt-1">{inputError}. Исправьте параметр в разделе «Доп. параметры: объём, пошлина, НДС».</p>
+      </div>
+    );
+  }
+
   const calc = calculateLandedCost(product, {
     freight: toRub(selectedQuote.oceanFreight, rates) + toRub(selectedQuote.railFreight, rates),
+    serviceFreight: toRub(selectedQuote.railFreight, rates),
     delivery: toRub(selectedQuote.truckDelivery, rates),
     other: toRub(selectedQuote.forwarderFee, rates) + toRub(selectedQuote.terminalExpenses, rates),
+    serviceVatRate: selectedQuote.vatRate,
   }, rates);
 
   const rows = [
@@ -89,7 +101,8 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
     { label: 'Морской и железнодорожный фрахт', value: calc.freightRUB, icon: Truck, sub: `${selectedQuote.forwarderName} → ${selectedQuote.destination}`, sub2: `${calc.freightPerM2} ₽/м²` },
     { label: 'Автовывоз', value: calc.deliveryRUB, icon: Truck, sub: formatRUB(calc.deliveryRUB) },
     { label: 'Комиссия и терминал', value: calc.otherRUB, icon: DollarSign, sub: formatRUB(calc.otherRUB) },
-    { label: 'НДС', value: calc.vatRUB, icon: CreditCard, sub: `${product.vatRate}% на российские услуги`, highlight: true },
+    { label: 'Импортный НДС', value: calc.importVatRUB, icon: CreditCard, sub: `${product.vatRate}% от (товар + фрахт + пошлина)`, highlight: true },
+    { label: 'НДС на российские услуги', value: calc.serviceVatRUB, icon: CreditCard, sub: `${selectedQuote.vatRate}% от Ж/Д, автовывоза, комиссии и терминала`, highlight: true },
   ];
 
   return (

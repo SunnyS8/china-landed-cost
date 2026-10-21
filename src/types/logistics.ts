@@ -64,6 +64,8 @@ export interface LandedCost {
   deliveryRUB: number;
   otherRUB: number;
   freightPerM2: number;
+  importVatRUB: number;
+  serviceVatRUB: number;
   vatRUB: number;
   totalRUB: number;
   totalPerM2: number;

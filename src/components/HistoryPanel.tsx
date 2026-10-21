@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Clock, Trash2, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, X } from 'lucide-react';
+import { ExchangeRates } from '../types/logistics';
 import { ParsedSnapshot, compareSnapshots, deleteSnapshot, getHistory } from '../utils/storage';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onRestore: (quotes: any[]) => void;
+  rates: ExchangeRates;
 }
 
-export const HistoryPanel: React.FC<Props> = ({ isOpen, onClose, onRestore }) => {
+export const HistoryPanel: React.FC<Props> = ({ isOpen, onClose, onRestore, rates }) => {
   const [history, setHistory] = useState<ParsedSnapshot[]>(() => getHistory());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [compareWith, setCompareWith] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export const HistoryPanel: React.FC<Props> = ({ isOpen, onClose, onRestore }) =>
       const oldSnap = history.find(s => s.id === compareWith);
       const newSnap = history.find(s => s.id === snapId);
       if (oldSnap && newSnap) {
-        return compareSnapshots(oldSnap, newSnap);
+        return compareSnapshots(oldSnap, newSnap, rates);
       }
     }
     return [];
