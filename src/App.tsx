@@ -82,7 +82,10 @@ export default function App() {
     const saved = localStorage.getItem('logistics_quotes_v1');
     if (saved) {
       try {
-        return normalizeQuotes(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return normalizeQuotes(parsed);
+        }
       } catch (e) {
         console.error('Error loading quotes', e);
       }
