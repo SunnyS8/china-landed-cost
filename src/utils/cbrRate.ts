@@ -11,13 +11,15 @@ function isoToDmy(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
+const CBR_API_URL = 'https://china-rf-logistics.vercel.app/api/cbr';
+
 /**
- * Fetch CBR rates via our own serverless proxy (/api/cbr).
- * The proxy calls cbr.ru server-side (no CORS issues) and supports any historical date.
+ * Use the Vite proxy locally and the CORS-enabled Vercel proxy on GitHub Pages.
  */
 export async function fetchCbrRates(isoDate: string, timeoutMs = 10000): Promise<CbrRates> {
   const dmy = isoToDmy(isoDate);
-  const url = `/api/cbr?date=${encodeURIComponent(dmy)}`;
+  const endpoint = import.meta.env.DEV ? '/api/cbr' : CBR_API_URL;
+  const url = `${endpoint}?date=${encodeURIComponent(dmy)}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

@@ -42,7 +42,7 @@ function loadRates(): ExchangeRates {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'rates' | 'routes' | 'report' | 'analytics' | 'landed'>('rates');
+  const [activeTab, setActiveTab] = useState<'rates' | 'routes' | 'report' | 'analytics' | 'landed'>('landed');
 
   // Product state
   const [product, setProduct] = useState<ProductQuote>(() => {
@@ -319,6 +319,18 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto py-2 no-scrollbar" aria-label="Вкладки">
               <button
+                onClick={() => setActiveTab('landed')}
+                className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap ${
+                  activeTab === 'landed'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Расчёт себестоимости</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('rates')}
                 className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap ${
                   activeTab === 'rates'
@@ -327,7 +339,7 @@ export default function App() {
                 }`}
               >
                 <Table className="w-4 h-4" />
-                <span>1. Сравнение ставок</span>
+                <span>Ставки перевозчиков</span>
                 <span className="ml-1 text-[10px] bg-slate-800 px-1.5 py-0.2 rounded-full text-slate-300">
                   {quotes.length}
                 </span>
@@ -342,7 +354,7 @@ export default function App() {
                 }`}
               >
                 <Map className="w-4 h-4" />
-                <span>2. Схемы маршрутов</span>
+                <span>Схемы маршрутов</span>
               </button>
 
               <button
@@ -354,19 +366,7 @@ export default function App() {
                 }`}
               >
                 <FileCheck className="w-4 h-4" />
-                <span>3. Итоговый отчет</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('landed')}
-                className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap ${
-                  activeTab === 'landed'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Package className="w-4 h-4" />
-                <span>5. Земля + Логистика</span>
+                <span>Итоговый отчёт по ставкам</span>
               </button>
 
               <button
@@ -378,7 +378,7 @@ export default function App() {
                 }`}
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>4. Аналитика</span>
+                <span>Аналитика ставок</span>
               </button>
             </nav>
           </div>
@@ -460,6 +460,8 @@ export default function App() {
               rates={rates}
               quotes={quotes}
               onSelectQuote={setSelectedQuote}
+              onAddQuote={() => setIsAddModalOpen(true)}
+              onImportQuotes={() => setIsImportModalOpen(true)}
             />
           </div>
         )}

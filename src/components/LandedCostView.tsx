@@ -1,7 +1,7 @@
 import React from 'react';
 import { ProductQuote, ForwarderQuote, ExchangeRates, LandedCost } from '../types/logistics';
-import { calculateLandedCost, formatRUB, formatUSD } from '../utils/calculations';
-import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight } from 'lucide-react';
+import { calculateLandedCost, calculateQuoteCost, formatRUB, toRub } from '../utils/calculations';
+import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Plus, Upload } from 'lucide-react';
 
 interface Props {
   product: ProductQuote;
@@ -9,32 +9,84 @@ interface Props {
   rates: ExchangeRates;
   quotes: ForwarderQuote[];
   onSelectQuote: (quote: ForwarderQuote | null) => void;
+  onAddQuote: () => void;
+  onImportQuotes: () => void;
 }
 
-export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, quotes, onSelectQuote }) => {
+export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, quotes, onSelectQuote, onAddQuote, onImportQuotes }) => {
   if (!selectedQuote) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-slate-200/90 shadow-xs text-center">
-        <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h3 className="text-lg font-bold text-slate-700 mb-2">Выберите ставку экспедитора</h3>
-        <p className="text-sm text-slate-500">
-          Перейдите на вкладку «1. Сравнение ставок» и выберите котировку, чтобы увидеть итоговый ландед-кост.
-        </p>
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Truck className="w-5 h-5 text-blue-600" />
+            2. Выберите маршрут
+          </h3>
+          <p className="text-sm text-slate-500 mt-1">
+            Выберите предложение перевозчика, чтобы перейти к расчёту себестоимости.
+          </p>
+        </div>
+        {quotes.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {quotes.map(quote => {
+              const routeCost = calculateQuoteCost(quote, rates);
+              return (
+                <button
+                  key={quote.id}
+                  onClick={() => onSelectQuote(quote)}
+                  className="text-left p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-slate-900">{quote.forwarderName}</div>
+                      <div className="text-xs text-slate-500 mt-1">{quote.originPort} → {quote.destination}</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-blue-600 shrink-0 mt-1" />
+                  </div>
+                  <div className="text-xs text-slate-600 mt-3 line-clamp-2">{quote.routeDescription}</div>
+                  <div className="flex justify-between gap-3 mt-3 pt-3 border-t border-slate-100 text-xs">
+                    <span className="text-slate-500">{quote.transitDaysMin}–{quote.transitDaysMax} дн.</span>
+                    <span className="font-bold text-slate-900">{formatRUB(routeCost.totalWithVatRub)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+            <div className="flex items-start gap-3">
+              <Package className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold text-slate-800">Ставок пока нет</div>
+                <p className="text-sm text-slate-600 mt-1">
+                  Добавьте предложение перевозчика вручную или загрузите Excel, чтобы сравнить маршрут и рассчитать итог.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button onClick={onAddQuote} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
+                <Plus className="w-4 h-4" /> Добавить ставку
+              </button>
+              <button onClick={onImportQuotes} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-white transition">
+                <Upload className="w-4 h-4" /> Загрузить Excel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   const calc = calculateLandedCost(product, {
-    freight: selectedQuote.oceanFreight.amount * (selectedQuote.oceanFreight.currency === 'RUB' ? 1 : rates.usdRub),
-    delivery: selectedQuote.truckDelivery.amount * (selectedQuote.truckDelivery.currency === 'RUB' ? 1 : rates.usdRub),
-    other: selectedQuote.forwarderFee.amount * (selectedQuote.forwarderFee.currency === 'RUB' ? 1 : rates.usdRub) +
-            selectedQuote.terminalExpenses.amount * (selectedQuote.terminalExpenses.currency === 'RUB' ? 1 : rates.usdRub),
+    freight: toRub(selectedQuote.oceanFreight, rates) + toRub(selectedQuote.railFreight, rates),
+    delivery: toRub(selectedQuote.truckDelivery, rates),
+    other: toRub(selectedQuote.forwarderFee, rates) + toRub(selectedQuote.terminalExpenses, rates),
   }, rates);
 
   const rows = [
     { label: 'Продукт (закупка)', value: calc.productRUB, icon: Package, sub: `${product.pricePerM2CNY} CNY/м² × ${rates.cnyRub.toFixed(2)} = ${formatRUB(calc.productPerM2)}/м²` },
     { label: 'Таможенная пошлина', value: calc.customsRUB, icon: FileText, sub: `${product.customsRate}% от (продукт + фрахт) = ${formatRUB(calc.customsPerM2)}/м²` },
-    { label: 'Морской фрахт', value: calc.freightRUB, icon: Truck, sub: `${selectedQuote.forwarderName} → ${selectedQuote.destination}`, sub2: `${calc.freightPerM2} ₽/м²` },
+    { label: 'Морской и железнодорожный фрахт', value: calc.freightRUB, icon: Truck, sub: `${selectedQuote.forwarderName} → ${selectedQuote.destination}`, sub2: `${calc.freightPerM2} ₽/м²` },
     { label: 'Автовывоз', value: calc.deliveryRUB, icon: Truck, sub: formatRUB(calc.deliveryRUB) },
     { label: 'Комиссия и терминал', value: calc.otherRUB, icon: DollarSign, sub: formatRUB(calc.otherRUB) },
     { label: 'НДС', value: calc.vatRUB, icon: CreditCard, sub: `${product.vatRate}% на российские услуги`, highlight: true },
@@ -48,7 +100,7 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              Итоговый ландед-кост
+              3. Итоговая себестоимость
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               {product.supplier} · {product.hsCode}
@@ -110,7 +162,7 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs space-y-3">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-purple-600" />
-            <span className="text-sm font-bold text-slate-900">Быстрая смена ставки</span>
+            <span className="text-sm font-bold text-slate-900">Другой маршрут</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {quotes.map(q => (

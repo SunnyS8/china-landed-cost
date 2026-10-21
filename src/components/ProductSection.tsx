@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ProductQuote } from '../types/logistics';
-import { DollarSign, Package, Weight, Container, Info } from 'lucide-react';
+import { DollarSign, Package, Weight, Container, Info, FileText } from 'lucide-react';
 
 interface Props {
   product: ProductQuote;
@@ -35,7 +35,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Package className="w-5 h-5 text-emerald-600" />
-          <h3 className="text-base font-bold text-slate-900">Закупка товара</h3>
+          <h3 className="text-base font-bold text-slate-900">1. Товар и параметры</h3>
           <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
             Китай → РФ
           </span>
@@ -44,7 +44,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
           onClick={() => setShowAdvanced(v => !v)}
           className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
         >
-          {showAdvanced ? 'Скрыть доп. параметры' : 'Показать доп. параметры'}
+          {showAdvanced ? 'Скрыть доп. параметры' : 'Доп. параметры: объём, пошлина, НДС'}
         </button>
       </div>
 
@@ -72,7 +72,6 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
         </div>
       </div>
 
-      {/* Prices */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>
@@ -88,99 +87,6 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>
-            <Package className="inline w-3 h-3 mr-1" />
-            Цена за 1 короб (юань)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={product.pricePerBoxCNY}
-            onChange={e => update({ pricePerBoxCNY: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
-      </div>
-
-      {/* Container params */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className={labelClass}>
-            <Container className="inline w-3 h-3 mr-1" />
-            Площадь контейнера (м²)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="10"
-            value={product.containerM2}
-            onChange={e => update({ containerM2: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>
-            <Weight className="inline w-3 h-3 mr-1" />
-            Вес 1 пог.м (кг)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={product.weightPerM}
-            onChange={e => update({ weightPerM: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>
-            <Weight className="inline w-3 h-3 mr-1" />
-            Вес контейнера (кг)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="100"
-            value={product.containerWeightKg}
-            onChange={e => update({ containerWeightKg: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
-      </div>
-
-      {/* Rates */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>
-            <FileText className="inline w-3 h-3 mr-1" />
-            Ставка пошлины (%)
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.5"
-            value={product.customsRate}
-            onChange={e => update({ customsRate: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>
-            <FileText className="inline w-3 h-3 mr-1" />
-            Ставка НДС (%)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={product.vatRate}
-            onChange={e => update({ vatRate: parseFloat(e.target.value) || 0 })}
-            className={inputClass}
-          />
-        </div>
       </div>
 
       {showAdvanced && (
@@ -188,6 +94,93 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
           <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
             Дополнительно
           </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>
+                <Package className="inline w-3 h-3 mr-1" />
+                Цена за 1 короб (юань)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={product.pricePerBoxCNY}
+                onChange={e => update({ pricePerBoxCNY: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <Container className="inline w-3 h-3 mr-1" />
+                Площадь контейнера (м²)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="10"
+                value={product.containerM2}
+                onChange={e => update({ containerM2: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <Weight className="inline w-3 h-3 mr-1" />
+                Вес 1 пог.м (кг)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={product.weightPerM}
+                onChange={e => update({ weightPerM: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <Weight className="inline w-3 h-3 mr-1" />
+                Вес контейнера (кг)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={product.containerWeightKg}
+                onChange={e => update({ containerWeightKg: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <FileText className="inline w-3 h-3 mr-1" />
+                Ставка пошлины (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={product.customsRate}
+                onChange={e => update({ customsRate: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <FileText className="inline w-3 h-3 mr-1" />
+                Ставка НДС (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={product.vatRate}
+                onChange={e => update({ vatRate: parseFloat(e.target.value) || 0 })}
+                className={inputClass}
+              />
+            </div>
+          </div>
           {product.note !== undefined && (
             <div>
               <label className={labelClass}>Примечание</label>
