@@ -20,6 +20,7 @@ import {
 import { ExchangeRates, ForwarderQuote, ProductQuote } from './types/logistics';
 import { exportAllData, getHistory, importAllData, normalizeQuotes, ParsedSnapshot, compareNewToLast, PriceChange } from './utils/storage';
 import { fetchCbrRates, DEFAULT_RATES } from './utils/cbrRate';
+import { DEMO_FORWARDER_QUOTES } from './data/demoQuotes';
 import { LogisticsTable } from './components/LogisticsTable';
 import { RouteMap } from './components/RouteMap';
 import { SummaryReport } from './components/SummaryReport';
@@ -86,7 +87,7 @@ export default function App() {
         console.error('Error loading quotes', e);
       }
     }
-    return [];
+    return normalizeQuotes(DEMO_FORWARDER_QUOTES);
   });
 
   const [history, setHistory] = useState<ParsedSnapshot[]>(() => getHistory());
