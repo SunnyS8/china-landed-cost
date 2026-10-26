@@ -231,6 +231,9 @@ export const APP_STORAGE_KEYS = [
   'logistics_cny_rub_rate',
   'logistics_report_date',
   'logistics_parse_history',
+  'landed_product',
+  'logistics_hs_codes_v1',
+  'logistics_cbr_cache_v1',
 ];
 
 export function exportAllData(): string {

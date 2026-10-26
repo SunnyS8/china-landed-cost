@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ForwarderQuote, ExchangeRates } from '../types/logistics';
+import { ForwarderQuote, ExchangeRates, ProductQuote } from '../types/logistics';
 import { calculateQuoteCost, formatUSD, formatRUB } from '../utils/calculations';
+import { downloadLandedCostExcel } from '../utils/excelReport';
 import { 
   FileCheck2, 
   Printer, 
@@ -11,17 +12,30 @@ import {
   Building, 
   Calendar, 
   DollarSign, 
-  ShieldCheck 
+  ShieldCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface Props {
   quotes: ForwarderQuote[];
   rates: ExchangeRates;
   reportDate: string;
+  product: ProductQuote;
+  rateDate?: string | null;
+  rateSource?: 'cbr' | 'cache' | 'manual';
+  selectedQuoteId?: string | null;
 }
 
-export const SummaryReport: React.FC<Props> = ({ quotes, rates, reportDate }) => {
+export const SummaryReport: React.FC<Props> = ({ quotes, rates, reportDate, product, rateDate, rateSource, selectedQuoteId }) => {
   const [copied, setCopied] = useState(false);
+
+  const handleExcel = () => {
+    try {
+      downloadLandedCostExcel({ product, quotes, rates, reportDate, rateDate, rateSource, selectedQuoteId });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Не удалось сформировать Excel-отчёт');
+    }
+  };
 
   // Group quotes by destination
   const serpukhovQuotes = quotes
@@ -95,11 +109,18 @@ export const SummaryReport: React.FC<Props> = ({ quotes, rates, reportDate }) =>
             Сводный отчет на дату согласования
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Готовое заключение по аудиозаданию для руководства и коммерческого отдела
+            Готовое заключение для руководства и коммерческого отдела
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExcel}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Скачать Excel
+          </button>
           <button
             onClick={handleCopySummary}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
