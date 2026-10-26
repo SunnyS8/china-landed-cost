@@ -64,80 +64,10 @@ function aistudioMediaPlugin(): Plugin {
 }
 // LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
-// Dev-only proxy for /api/cbr — mirrors api/cbr.ts (Vercel serverless in production)
-function cbrProxyPlugin(): Plugin {
-  const extract = (xml: string, code: string): number | null => {
-    const re = new RegExp(
-      `<Valute[^>]*>\\s*<NumCode>[^<]*</NumCode>\\s*<CharCode>${code}</CharCode>\\s*<Nominal>(\\d+)</Nominal>\\s*<Name>[^<]*</Name>\\s*<Value>([\\d,]+)</Value>`,
-    );
-    const m = xml.match(re);
-    if (!m) return null;
-    const nominal = parseInt(m[1], 10);
-    const value = parseFloat(m[2].replace(',', '.'));
-    return nominal > 0 && value > 0 ? value / nominal : null;
-  };
-
-  return {
-    name: 'vite-plugin-cbr-proxy',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith('/api/cbr')) return next();
-        const u = new URL(req.url, 'http://localhost');
-        const date = u.searchParams.get('date') || '';
-        if (!/^\d{2}\.\d{2}\.\d{4}$/.test(date)) {
-          res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({error: 'date must be DD.MM.YYYY'}));
-          return;
-        }
-        try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 12000);
-          const r = await fetch(
-            `https://www.cbr.ru/scripts/XML_daily.asp?date_req=${date}`,
-            {signal: ctrl.signal},
-          );
-          clearTimeout(timer);
-          if (!r.ok) {
-            res.statusCode = 502;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({error: `cbr.ru ${r.status}`}));
-            return;
-          }
-          const xml = await r.text();
-          const usd = extract(xml, 'USD');
-          const eur = extract(xml, 'EUR');
-          const cny = extract(xml, 'CNY');
-          if (usd == null) {
-            res.statusCode = 502;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({error: 'USD not found'}));
-            return;
-          }
-          const dateMatch = xml.match(/<ValCurs[^>]+date="(\d{2}\.\d{2}\.\d{4})"/);
-          res.setHeader('Content-Type', 'application/json');
-          res.end(
-            JSON.stringify({
-              date: dateMatch?.[1] || date,
-              usdRub: usd,
-              eurRub: eur ?? usd * 1.08,
-              cnyRub: cny ?? usd / 7.1,
-            }),
-          );
-        } catch (e: any) {
-          res.statusCode = 502;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({error: e?.message || 'fetch failed'}));
-        }
-      });
-    },
-  };
-}
-
 export default defineConfig(() => {
   return {
     base: '/china-landed-cost/',
-    plugins: [react(), tailwindcss(), aistudioMediaPlugin(), cbrProxyPlugin()],
+    plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
