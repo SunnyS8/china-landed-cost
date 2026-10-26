@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, FolderOpen, RefreshCw } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, FolderOpen, RefreshCw, ClipboardPaste } from 'lucide-react';
 import { ForwarderQuote } from '../types/logistics';
 import { parseExcelFile } from '../utils/parseExcel';
 import { validateAllQuotes, ValidationWarning, saveSnapshot } from '../utils/storage';
@@ -9,9 +9,10 @@ interface Props {
   onClose: () => void;
   onImport: (quotes: ForwarderQuote[]) => void;
   onOpenHistory: () => void;
+  onOpenPasteModal?: () => void;
 }
 
-export const ImportModal: React.FC<Props> = ({ isOpen, onClose, onImport, onOpenHistory }) => {
+export const ImportModal: React.FC<Props> = ({ isOpen, onClose, onImport, onOpenHistory, onOpenPasteModal }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<ForwarderQuote[]>([]);
   const [warnings, setWarnings] = useState<Map<string, ValidationWarning[]>>(new Map<string, ValidationWarning[]>());
@@ -179,26 +180,42 @@ export const ImportModal: React.FC<Props> = ({ isOpen, onClose, onImport, onOpen
               <FileSpreadsheet className="w-5 h-5 text-blue-700" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900">Загрузить ставки перевозчиков</h3>
-              <p className="text-xs text-slate-500">Excel (.xlsx) — парсинг и валидация автоматические</p>
+              <h3 className="font-bold text-slate-900">Загрузить ставки из файла</h3>
+              <p className="text-xs text-slate-500">
+                Excel (.xlsx) или JSON — покажем распознанное до импорта, чтобы можно было проверить
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {onOpenPasteModal && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenPasteModal();
+                }}
+                title="Вставить текст КП из письма или мессенджера"
+                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition inline-flex items-center gap-1.5"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+                Вставить текст КП
+              </button>
+            )}
             <button
               onClick={async () => {
-                const { downloadExcelTemplate } = await import('../utils/excelTemplate');
-                downloadExcelTemplate();
+                const { downloadSampleQuotesFile } = await import('../utils/excelTemplate');
+                downloadSampleQuotesFile();
               }}
-              className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-medium hover:bg-slate-200 transition"
+              title="Скачать заполненный пример — замените строки своими ставками и загрузите"
+              className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition"
             >
-              Шаблон Excel
+              Пример файла
             </button>
             <button
               onClick={async () => {
                 const { downloadRfqTemplate } = await import('../utils/excelTemplate');
                 downloadRfqTemplate();
               }}
-              title="Форма запроса цен для перевозчиков"
+              title="Форма запроса цен для перевозчиков (пустой шаблон + письмо запроса)"
               className="text-xs px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition"
             >
               Запрос цен
@@ -217,23 +234,33 @@ export const ImportModal: React.FC<Props> = ({ isOpen, onClose, onImport, onOpen
 
         {/* Body */}
         <div className="p-5 space-y-4 overflow-y-auto max-h-[60vh]">
-          {/* Action buttons: folder or files */}
-          <div className="flex gap-3">
-            <button
-              onClick={handleFolderOpen}
-              className="flex-1 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center hover:bg-blue-50 hover:border-blue-400 transition"
-            >
-              <FolderOpen className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-blue-700">Открыть папку с файлами</p>
-              <p className="text-[11px] text-blue-500 mt-0.5">Все .xlsx из папки парсятся автоматически</p>
-            </button>
+          {/* Что подходит */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
+            <div className="font-semibold text-slate-800">Что сюда подходит:</div>
+            <div>• <strong>Excel по нашей форме</strong> — «Пример файла» / «Запрос цен» вверху, перевозчик заполняет строки;</div>
+            <div>• <strong>Файл перевозчика с понятными колонками</strong> — «Фрахт», «ЖД», «Автовывоз», «Срок доставки» — распознаются по заголовкам;</div>
+            <div>• <strong>JSON</strong> — выгруженный ранее из этого приложения.</div>
+            <div className="pt-1 text-slate-500">
+              Если файл похож на ваш, но не распознался — быстрее вставить{' '}
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenPasteModal?.(); }}
+                className="font-semibold text-emerald-700 underline decoration-dotted hover:text-emerald-800"
+              >
+                текст КП
+              </button>{' '}
+              или ввести ставку вручную.
+            </div>
+          </div>
 
+          {/* Action buttons: primary — files; secondary — folder */}
+          <div className="space-y-2">
             <div
               onDragOver={e => { e.preventDefault(); setDragActive(true); }}
               onDragLeave={() => setDragActive(false)}
               onDrop={handleDrop}
               onClick={() => fileRef.current?.click()}
-              className={`flex-1 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
                 dragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
               }`}
             >
@@ -246,8 +273,29 @@ export const ImportModal: React.FC<Props> = ({ isOpen, onClose, onImport, onOpen
                 onChange={e => e.target.files && handleFiles(e.target.files)}
               />
               <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-medium text-slate-700">Перетащить файлы</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">.xlsx или .json</p>
+              <p className="text-sm font-semibold text-slate-800">Перетащите файл сюда или нажмите, чтобы выбрать</p>
+              <p className="text-[11px] text-slate-500 mt-1">.xlsx, .xls или .json · можно сразу несколько файлов</p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={handleFolderOpen}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 underline decoration-dotted"
+                title="Загрузить все .xlsx из выбранной папки"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Загрузить все файлы из папки
+              </button>
+              <button
+                onClick={async () => {
+                  const { downloadSampleQuotesFile } = await import('../utils/excelTemplate');
+                  downloadSampleQuotesFile();
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Скачать пример заполненного файла
+              </button>
             </div>
           </div>
 

@@ -26,6 +26,7 @@ import { RouteMap } from './components/RouteMap';
 import { SummaryReport } from './components/SummaryReport';
 import { AddQuoteModal } from './components/AddQuoteModal';
 import { ImportModal } from './components/ImportModal';
+import { PasteQuoteModal } from './components/PasteQuoteModal';
 import { HistoryPanel } from './components/HistoryPanel';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ProductSection } from './components/ProductSection';
@@ -97,6 +98,7 @@ export default function App() {
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -457,6 +459,7 @@ export default function App() {
             onOpenAddModal={() => setIsAddModalOpen(true)}
             onDeleteQuote={handleDeleteQuote}
             onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenPasteModal={() => setIsPasteModalOpen(true)}
             onExportJSON={handleExportJSON}
             onDownloadTemplate={handleDownloadTemplate}
             onDownloadRfq={handleDownloadRfq}
@@ -500,6 +503,7 @@ export default function App() {
               onSelectQuote={setSelectedQuote}
               onAddQuote={() => setIsAddModalOpen(true)}
               onImportQuotes={() => setIsImportModalOpen(true)}
+              onPasteQuote={() => setIsPasteModalOpen(true)}
             />
           </div>
         )}
@@ -510,6 +514,17 @@ export default function App() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddQuote}
+        rates={rates}
+        existingForwarders={quotes.map(q => q.forwarderName)}
+      />
+
+      {/* Paste Quote Text Modal Dialog */}
+      <PasteQuoteModal
+        isOpen={isPasteModalOpen}
+        onClose={() => setIsPasteModalOpen(false)}
+        onImport={handleImportQuotes}
+        rates={rates}
+        existingForwarders={quotes.map(q => q.forwarderName)}
       />
 
       {/* Import Modal Dialog */}
@@ -517,6 +532,7 @@ export default function App() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImport={handleImportQuotes}
+        onOpenPasteModal={() => setIsPasteModalOpen(true)}
         onOpenHistory={() => { setIsImportModalOpen(false); setIsHistoryOpen(true); }}
       />
 

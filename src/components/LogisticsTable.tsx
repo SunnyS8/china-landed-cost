@@ -32,7 +32,8 @@ import {
   FileSpreadsheet,
   FileText,
   Settings,
-  StickyNote
+  StickyNote,
+  ClipboardPaste
 } from 'lucide-react';
 
 interface Props {
@@ -44,6 +45,7 @@ interface Props {
   onOpenAddModal: () => void;
   onDeleteQuote: (id: string) => void;
   onOpenImportModal: () => void;
+  onOpenPasteModal: () => void;
   onExportJSON: () => void;
   onDownloadTemplate: () => void;
   onDownloadRfq: () => void;
@@ -62,6 +64,7 @@ export const LogisticsTable: React.FC<Props> = ({
   onOpenAddModal,
   onDeleteQuote,
   onOpenImportModal,
+  onOpenPasteModal,
   onExportJSON,
   onDownloadTemplate,
   onDownloadRfq,
@@ -238,9 +241,17 @@ export const LogisticsTable: React.FC<Props> = ({
           {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-3">
             <button
+              onClick={onOpenPasteModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition"
+              title="Вставить текст КП из письма или мессенджера"
+            >
+              <ClipboardPaste className="w-4 h-4" />
+              Текст КП
+            </button>
+            <button
               onClick={onOpenImportModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold border border-slate-200 transition"
-              title="Импорт ставок из JSON/CSV"
+              title="Импорт ставок из Excel/JSON"
             >
               <Upload className="w-4 h-4" />
               Импорт

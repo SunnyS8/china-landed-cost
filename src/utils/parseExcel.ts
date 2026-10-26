@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { ForwarderQuote, DestinationWarehouse, RouteType, ContainerSize } from '../types/logistics';
+import { defaultValidUntil } from './date';
 
 interface RawRoute {
   carrier: string;
@@ -515,7 +516,7 @@ function rawRouteToQuote(raw: RawRoute, idx: number): ForwarderQuote {
     transitDaysMin: raw.transitDaysMin || 25,
     transitDaysMax: raw.transitDaysMax || 40,
     equipment: raw.containerSize === '20GP' ? "20'GP" : "40'HC",
-    validUntil: raw.validUntil || '2026-10-31',
+    validUntil: raw.validUntil || defaultValidUntil(),
     comments: raw.comments || ''
   };
 }

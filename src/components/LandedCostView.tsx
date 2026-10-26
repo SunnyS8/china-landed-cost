@@ -4,7 +4,7 @@ import { calculateLandedCost, calculateQuoteCost, formatRUB, getLandedCostInputE
 import { downloadLandedCostExcel } from '../utils/excelReport';
 import { formatHsCode, findHsCode } from '../utils/hsCode';
 import { formatIsoRu } from '../utils/cbrRate';
-import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Plus, Upload, CalendarDays, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Upload, CalendarDays, FileSpreadsheet, ClipboardPaste, Pencil } from 'lucide-react';
 
 interface Props {
   product: ProductQuote;
@@ -18,9 +18,10 @@ interface Props {
   onSelectQuote: (quote: ForwarderQuote | null) => void;
   onAddQuote: () => void;
   onImportQuotes: () => void;
+  onPasteQuote: () => void;
 }
 
-export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, rateDate, rateSource, reportDate, onDateChange, quotes, onSelectQuote, onAddQuote, onImportQuotes }) => {
+export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, rateDate, rateSource, reportDate, onDateChange, quotes, onSelectQuote, onAddQuote, onImportQuotes, onPasteQuote }) => {
   const handleExcel = () => {
     try {
       downloadLandedCostExcel({
@@ -60,7 +61,75 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
             </button>
           )}
         </div>
-        {quotes.length > 0 ? (
+
+        {/* Способы добавить ставки */}
+        {quotes.length === 0 && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              onClick={onPasteQuote}
+              className="text-left p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:border-emerald-400 hover:bg-emerald-50 transition group"
+            >
+              <ClipboardPaste className="w-5 h-5 text-emerald-700" />
+              <div className="mt-2 text-sm font-bold text-slate-900">Вставить текст КП</div>
+              <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Скопируйте письмо или сообщение перевозчика — суммы и срок распознаем сами
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                Самый быстрый способ <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </button>
+
+            <button
+              onClick={onImportQuotes}
+              className="text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition"
+            >
+              <Upload className="w-5 h-5 text-blue-600" />
+              <div className="mt-2 text-sm font-bold text-slate-900">Загрузить файл</div>
+              <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Excel по нашей форме или файл перевозчика в формате .xlsx / .json
+              </div>
+            </button>
+
+            <button
+              onClick={onAddQuote}
+              className="text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition"
+            >
+              <Pencil className="w-5 h-5 text-slate-600" />
+              <div className="mt-2 text-sm font-bold text-slate-900">Ввести вручную</div>
+              <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Маршрут, 5 сумм и срок — короткая форма из трёх шагов
+              </div>
+            </button>
+          </div>
+        )}
+
+        {quotes.length === 0 && (
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 flex items-start gap-3">
+            <Package className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-slate-600">
+              <span className="font-semibold text-slate-800">Ставок пока нет.</span>{' '}
+              Добавьте хотя бы одно предложение перевозчика, чтобы сравнить маршруты и рассчитать итоговую себестоимость.
+              Загруженные ставки сохраняются в браузере и в истории импорта.
+            </p>
+          </div>
+        )}
+
+        {quotes.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[11px] text-slate-500">Добавить ещё ставку:</span>
+            <button onClick={onPasteQuote} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+              <ClipboardPaste className="w-3.5 h-3.5" /> Текст КП
+            </button>
+            <button onClick={onImportQuotes} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+              <Upload className="w-3.5 h-3.5" /> Файл
+            </button>
+            <button onClick={onAddQuote} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+              <Pencil className="w-3.5 h-3.5" /> Вручную
+            </button>
+          </div>
+        )}
+
+        {quotes.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
             {quotes.map(quote => {
               const routeCost = calculateQuoteCost(quote, rates);
@@ -85,26 +154,6 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
                 </button>
               );
             })}
-          </div>
-        ) : (
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-            <div className="flex items-start gap-3">
-              <Package className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
-              <div>
-                <div className="font-semibold text-slate-800">Ставок пока нет</div>
-                <p className="text-sm text-slate-600 mt-1">
-                  Добавьте предложение перевозчика вручную или загрузите Excel, чтобы сравнить маршрут и рассчитать итог.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <button onClick={onAddQuote} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
-                <Plus className="w-4 h-4" /> Добавить ставку
-              </button>
-              <button onClick={onImportQuotes} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-white transition">
-                <Upload className="w-4 h-4" /> Загрузить Excel
-              </button>
-            </div>
           </div>
         )}
       </div>
