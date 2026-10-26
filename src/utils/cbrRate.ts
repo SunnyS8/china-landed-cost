@@ -1,4 +1,7 @@
 import {ExchangeRates} from '../types/logistics';
+import {formatIsoRu, todayIso} from './date';
+
+export {formatIsoRu, todayIso};
 
 export interface CbrRates extends ExchangeRates {
   /** Дата, на которую ЦБ РФ фактически опубликовал курс (ISO) */
@@ -13,15 +16,6 @@ export interface CbrRates extends ExchangeRates {
 
 export const DEFAULT_RATES: ExchangeRates = {usdRub: 92.5, eurRub: 108, cnyRub: 13};
 
-/** Локальная дата в формате YYYY-MM-DD (без сдвига UTC) */
-export function todayIso(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 function isoToDmy(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}.${m}.${y}`;
@@ -30,11 +24,6 @@ function isoToDmy(iso: string): string {
 function dmyToIso(dmy: string): string {
   const [d, m, y] = dmy.split('.');
   return `${y}-${m}-${d}`;
-}
-
-export function formatIsoRu(iso: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  return isoToDmy(iso);
 }
 
 /**

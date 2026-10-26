@@ -470,7 +470,15 @@ export default function App() {
         {activeTab === 'routes' && <RouteMap />}
 
         {activeTab === 'report' && (
-          <SummaryReport quotes={quotes} rates={rates} reportDate={reportDate} />
+          <SummaryReport
+            quotes={quotes}
+            rates={rates}
+            reportDate={reportDate}
+            product={product}
+            rateDate={rateDate}
+            rateSource={rateSource}
+            selectedQuoteId={selectedQuote?.id ?? null}
+          />
         )}
 
         {activeTab === 'analytics' && (

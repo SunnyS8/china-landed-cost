@@ -102,15 +102,36 @@ export function calculateQuoteCost(quote: ForwarderQuote, rates: ExchangeRates):
   };
 }
 
+export interface LogisticsCostInput {
+  /** Морской + Ж/Д фрахт, ₽ */
+  freight: number;
+  /** Ж/Д плечо (входит в freight, но облагается НДС как рос. услуга), ₽ */
+  serviceFreight: number;
+  /** Автовывоз до склада, ₽ */
+  delivery: number;
+  /** Комиссия экспедитора + терминал, ₽ */
+  other: number;
+  /** НДС на российские услуги, % */
+  serviceVatRate: number;
+  /** Доплата за перевес, ₽ */
+  overweightRUB?: number;
+}
+
+/** Переводит предложение перевозчика в набор статей для расчёта ландед-коста */
+export function logisticsFromQuote(quote: ForwarderQuote, rates: ExchangeRates): LogisticsCostInput {
+  return {
+    freight: toRub(quote.oceanFreight, rates) + toRub(quote.railFreight, rates),
+    serviceFreight: toRub(quote.railFreight, rates),
+    delivery: toRub(quote.truckDelivery, rates),
+    other: toRub(quote.forwarderFee, rates) + toRub(quote.terminalExpenses, rates),
+    serviceVatRate: quote.vatRate,
+    overweightRUB: calcOverweightRub(quote),
+  };
+}
+
 export function calculateLandedCost(
   product: ProductQuote,
-  logisticsRUB: {
-    freight: number;
-    serviceFreight: number;
-    delivery: number;
-    other: number;
-    serviceVatRate: number;
-  },
+  logisticsRUB: LogisticsCostInput,
   rates: ExchangeRates,
 ): LandedCost {
   const inputError = getLandedCostInputError(product);
@@ -118,6 +139,8 @@ export function calculateLandedCost(
 
   const productRUB = product.pricePerM2CNY * rates.cnyRub * product.containerM2;
   const productPerM2 = product.pricePerM2CNY * rates.cnyRub;
+
+  const overweightRUB = logisticsRUB.overweightRUB ?? 0;
 
   const customsBase = productRUB + logisticsRUB.freight;
   const customsRUB = customsBase * (product.customsRate / 100);
@@ -127,11 +150,14 @@ export function calculateLandedCost(
 
   const importVatBase = customsBase + customsRUB;
   const importVatRUB = importVatBase * (product.vatRate / 100);
-  const serviceVatBase = logisticsRUB.serviceFreight + logisticsRUB.delivery + logisticsRUB.other;
+  const serviceVatBase =
+    logisticsRUB.serviceFreight + logisticsRUB.delivery + logisticsRUB.other + overweightRUB;
   const serviceVatRUB = serviceVatBase * (logisticsRUB.serviceVatRate / 100);
   const vatRUB = importVatRUB + serviceVatRUB;
 
-  const totalRUB = productRUB + customsRUB + logisticsRUB.freight + logisticsRUB.delivery + logisticsRUB.other + vatRUB;
+  const totalRUB =
+    productRUB + customsRUB + logisticsRUB.freight + logisticsRUB.delivery +
+    logisticsRUB.other + overweightRUB + vatRUB;
   const totalPerM2 = totalRUB / product.containerM2;
   const totalPerKg = totalRUB / product.containerWeightKg;
 
@@ -144,6 +170,7 @@ export function calculateLandedCost(
     deliveryRUB: Math.round(logisticsRUB.delivery),
     otherRUB: Math.round(logisticsRUB.other),
     freightPerM2: Math.round(freightPerM2),
+    overweightRUB: Math.round(overweightRUB),
     importVatRUB: Math.round(importVatRUB),
     serviceVatRUB: Math.round(serviceVatRUB),
     vatRUB: Math.round(vatRUB),
