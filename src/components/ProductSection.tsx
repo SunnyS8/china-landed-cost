@@ -127,7 +127,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
                   <span className="font-semibold text-slate-800">{hsEntry.title}</span>
                   {hsEntry.dutyRate != null ? (
                     <span className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">
-                      пошлина {hsEntry.dutyRate}%
+                      пошлина {hsEntry.dutyRate}%{hsEntry.vatRate != null ? ` · НДС ${hsEntry.vatRate}%` : ''}
                     </span>
                   ) : (
                     <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
