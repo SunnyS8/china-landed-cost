@@ -17,9 +17,10 @@ import {
   TrendingDown,
   Package,
 } from 'lucide-react';
-import { ExchangeRates, ForwarderQuote, ProductQuote } from './types/logistics';
+import { ExchangeRates, ForwarderQuote, ProductQuote, ExtraExpense } from './types/logistics';
 import { exportAllData, getHistory, importAllData, normalizeQuotes, ParsedSnapshot, compareNewToLast, PriceChange } from './utils/storage';
 import { fetchCbrRates, formatIsoRu, todayIso, DEFAULT_RATES } from './utils/cbrRate';
+import { loadExtraExpenses, saveExtraExpenses } from './utils/extraExpenses';
 import { DEMO_FORWARDER_QUOTES } from './data/demoQuotes';
 import { LogisticsTable } from './components/LogisticsTable';
 import { RouteMap } from './components/RouteMap';
@@ -31,6 +32,7 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ProductSection } from './components/ProductSection';
 import { LandedCostView } from './components/LandedCostView';
+import { ExtraExpensesSection } from './components/ExtraExpensesSection';
 
 function loadRates(): ExchangeRates {
   const usd = parseFloat(localStorage.getItem('logistics_usd_rate') || '');
@@ -67,6 +69,13 @@ export default function App() {
   });
 
   const [selectedQuote, setSelectedQuote] = useState<ForwarderQuote | null>(null);
+
+  // Дополнительные расходы (агентское, валюта, ТЭО) — пресет статей с сохранением сумм
+  const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>(() => loadExtraExpenses());
+
+  useEffect(() => {
+    saveExtraExpenses(extraExpenses);
+  }, [extraExpenses]);
 
   // Rates & Date state
   const [rates, setRates] = useState<ExchangeRates>(() => loadRates());
@@ -481,6 +490,7 @@ export default function App() {
             rateDate={rateDate}
             rateSource={rateSource}
             selectedQuoteId={selectedQuote?.id ?? null}
+            extraExpenses={extraExpenses}
           />
         )}
 
@@ -491,6 +501,11 @@ export default function App() {
         {activeTab === 'landed' && (
           <div className="space-y-6">
             <ProductSection product={product} onChange={setProduct} />
+            <ExtraExpensesSection
+              expenses={extraExpenses}
+              onChange={setExtraExpenses}
+              vatRate={selectedQuote?.vatRate}
+            />
             <LandedCostView
               product={product}
               selectedQuote={selectedQuote}
@@ -504,6 +519,7 @@ export default function App() {
               onAddQuote={() => setIsAddModalOpen(true)}
               onImportQuotes={() => setIsImportModalOpen(true)}
               onPasteQuote={() => setIsPasteModalOpen(true)}
+              extraExpenses={extraExpenses}
             />
           </div>
         )}

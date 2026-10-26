@@ -55,6 +55,28 @@ export interface ProductQuote {
   note?: string;
 }
 
+/** Группа дополнительных расходов при импорте */
+export type ExtraExpenseGroup = 'fee' | 'teo' | 'custom';
+
+/**
+ * Дополнительный расход, прибавляемый к итоговой себестоимости.
+ * В таможенную базу (и, следовательно, в пошлину и импортный НДС) НЕ входит.
+ */
+export interface ExtraExpense {
+  /** Стабильный id: встроенные позиции имеют постоянные id, свои — случайные */
+  id: string;
+  name: string;
+  group: ExtraExpenseGroup;
+  /** Сумма так, как она стоит в счёте — уже с НДС */
+  amountRub: number;
+  /** Выделять НДС из суммы (для отчёта). На итог не влияет: сумма и так с НДС */
+  vat: boolean;
+  /** Учитывать статью в расчёте */
+  enabled: boolean;
+  /** Встроенная позиция пресета (нельзя удалить, можно выключить) */
+  builtin?: boolean;
+}
+
 export interface LandedCost {
   productRUB: number;
   productPerM2: number;

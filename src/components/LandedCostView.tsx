@@ -1,10 +1,11 @@
 import React from 'react';
-import { ProductQuote, ForwarderQuote, ExchangeRates, LandedCost } from '../types/logistics';
+import { ProductQuote, ForwarderQuote, ExchangeRates, ExtraExpense } from '../types/logistics';
 import { calculateLandedCost, calculateQuoteCost, formatRUB, getLandedCostInputError, logisticsFromQuote } from '../utils/calculations';
+import { calculateExtraExpenses } from '../utils/extraExpenses';
 import { downloadLandedCostExcel } from '../utils/excelReport';
 import { formatHsCode, findHsCode } from '../utils/hsCode';
 import { formatIsoRu } from '../utils/cbrRate';
-import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Upload, CalendarDays, FileSpreadsheet, ClipboardPaste, Pencil } from 'lucide-react';
+import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Upload, CalendarDays, FileSpreadsheet, ClipboardPaste, Pencil, Receipt } from 'lucide-react';
 
 interface Props {
   product: ProductQuote;
@@ -19,9 +20,10 @@ interface Props {
   onAddQuote: () => void;
   onImportQuotes: () => void;
   onPasteQuote: () => void;
+  extraExpenses?: ExtraExpense[];
 }
 
-export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, rateDate, rateSource, reportDate, onDateChange, quotes, onSelectQuote, onAddQuote, onImportQuotes, onPasteQuote }) => {
+export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, rateDate, rateSource, reportDate, onDateChange, quotes, onSelectQuote, onAddQuote, onImportQuotes, onPasteQuote, extraExpenses = [] }) => {
   const handleExcel = () => {
     try {
       downloadLandedCostExcel({
@@ -32,6 +34,7 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
         rateDate,
         rateSource,
         selectedQuoteId: selectedQuote?.id ?? null,
+        extraExpenses,
       });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Не удалось сформировать Excel-отчёт');
@@ -171,6 +174,10 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
   }
 
   const calc = calculateLandedCost(product, logisticsFromQuote(selectedQuote, rates), rates);
+  const extra = calculateExtraExpenses(extraExpenses, selectedQuote.vatRate);
+  const grandTotalRUB = calc.totalRUB + extra.totalRub;
+  const grandPerM2 = product.containerM2 > 0 ? Math.round(grandTotalRUB / product.containerM2) : 0;
+  const grandPerKg = product.containerWeightKg > 0 ? Math.round(grandTotalRUB / product.containerWeightKg) : 0;
 
   const rows = [
     { label: 'Продукт (закупка)', value: calc.productRUB, icon: Package, sub: `${product.pricePerM2CNY} CNY/м² × ${rates.cnyRub.toFixed(2)} = ${formatRUB(calc.productPerM2)}/м²` },
@@ -183,6 +190,9 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
       : []),
     { label: 'Импортный НДС', value: calc.importVatRUB, icon: CreditCard, sub: `${product.vatRate}% от (товар + фрахт + пошлина)`, highlight: true },
     { label: 'НДС на российские услуги', value: calc.serviceVatRUB, icon: CreditCard, sub: `${selectedQuote.vatRate}% от Ж/Д, автовывоза, комиссии и терминала`, highlight: true },
+    ...(extra.totalRub > 0
+      ? [{ label: 'Дополнительные расходы', value: extra.totalRub, icon: Receipt, sub: `${extra.activeCount} ${extra.activeCount === 1 ? 'статья' : extra.activeCount < 5 ? 'статьи' : 'статей'} · агентское, валюта, ТЭО`, sub2: extra.vatRub > 0 ? `в т.ч. НДС ${formatRUB(extra.vatRub)} · вне таможенной базы` : 'вне таможенной базы', highlight: true }]
+      : []),
   ];
 
   return (
@@ -265,10 +275,15 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
                 <span className="text-base font-black text-emerald-900">ИТОГО (ландед-кост)</span>
               </div>
               <div className="text-right">
-                <div className="text-xl font-black text-emerald-900">{formatRUB(calc.totalRUB)}</div>
+                <div className="text-xl font-black text-emerald-900">{formatRUB(grandTotalRUB)}</div>
                 <div className="text-[11px] text-emerald-700 font-semibold">
-                  {formatRUB(calc.totalPerM2)}/м² · {formatRUB(calc.totalPerKg)}/кг
+                  {formatRUB(grandPerM2)}/м² · {formatRUB(grandPerKg)}/кг
                 </div>
+                {extra.totalRub > 0 && (
+                  <div className="text-[11px] text-emerald-700">
+                    вкл. доп. расходы {formatRUB(extra.totalRub)}
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -232,6 +232,7 @@ export const APP_STORAGE_KEYS = [
   'logistics_report_date',
   'logistics_parse_history',
   'landed_product',
+  'logistics_extra_expenses_v1',
   'logistics_hs_codes_v1',
   'logistics_cbr_cache_v1',
 ];

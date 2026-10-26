@@ -1,11 +1,12 @@
 import * as XLSX from 'xlsx';
-import { ExchangeRates, ForwarderQuote, ProductQuote } from '../types/logistics';
+import { ExchangeRates, ExtraExpense, ForwarderQuote, ProductQuote } from '../types/logistics';
 import {
   calculateLandedCost,
   getLandedCostInputError,
   logisticsFromQuote,
   toRub,
 } from './calculations';
+import { calculateExtraExpenses, ExtraExpensesTotals } from './extraExpenses';
 import { findHsCode, formatHsCode, normalizeHsCode } from './hsCode';
 import { formatIsoRu } from './date';
 
@@ -19,6 +20,8 @@ export interface ExcelReportOptions {
   rateDate?: string | null;
   rateSource?: 'cbr' | 'cache' | 'manual';
   selectedQuoteId?: string | null;
+  /** Дополнительные расходы (агентское, валюта, ТЭО) — прибавляются к итогу */
+  extraExpenses?: ExtraExpense[];
 }
 
 const ROUTE_TYPE_LABELS: Record<ForwarderQuote['routeType'], string> = {
@@ -87,7 +90,7 @@ function buildRouteRows(options: ExcelReportOptions): RouteRow[] {
   });
 }
 
-function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[]) {
+function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[], extra: ExtraExpensesTotals) {
   const { product, rates, reportDate, rateDate, rateSource, selectedQuoteId } = options;
   const hsCode = normalizeHsCode(product.hsCode);
   const hsEntry = findHsCode(hsCode);
@@ -128,6 +131,12 @@ function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[]) {
     .sort((a, b) => a.landed.totalPerM2 - b.landed.totalPerM2)[0];
   const selected = rows.find(r => r.quote.id === selectedQuoteId);
 
+  const grandTotalRub = (r: RouteRow) => r.landed.totalRUB + extra.totalRub;
+  const grandPerM2 = (r: RouteRow) =>
+    product.containerM2 > 0 ? Math.round(grandTotalRub(r) / product.containerM2) : 0;
+  const grandPerKg = (r: RouteRow) =>
+    product.containerWeightKg > 0 ? Math.round(grandTotalRub(r) / product.containerWeightKg) : 0;
+
   aoa.push(['ЛУЧШИЕ ВАРИАНТЫ И ВЫБРАННЫЙ МАРШРУТ']);
   aoa.push(['Вариант', 'Экспедитор', 'Маршрут', 'Срок, дн', 'Итого ₽', '₽/м²', '₽/кг']);
   const pushBest = (label: string, row?: RouteRow) => {
@@ -140,9 +149,9 @@ function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[]) {
       row.quote.forwarderName,
       row.quote.routeDescription,
       `${row.quote.transitDaysMin}–${row.quote.transitDaysMax}`,
-      row.landed.totalRUB,
-      row.landed.totalPerM2,
-      row.landed.totalPerKg,
+      grandTotalRub(row),
+      grandPerM2(row),
+      grandPerKg(row),
     ]);
   };
   pushBest('Серпухов — лучшая цена', bestSerpukhov);
@@ -153,8 +162,17 @@ function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[]) {
     'Итог включает: продукт, пошлину, морской и Ж/Д фрахт, автовывоз, комиссию и терминал, перевес,',
   ]);
   aoa.push([
-    'импортный НДС и НДС на российские услуги. Подробная расшифровка — на листах «Маршруты» и «Выбранный маршрут».',
+    'импортный НДС и НДС на российские услуги',
+    ...(extra.totalRub > 0
+      ? [`плюс дополнительные расходы ${extra.totalRub} ₽ (в т.ч. НДС ${extra.vatRub} ₽)`]
+      : []),
   ]);
+  if (extra.totalRub > 0) {
+    aoa.push([
+      'Дополнительные расходы входят в итог, но не входят в таможенную базу — пошлина и импортный НДС от них не растут.',
+    ]);
+  }
+  aoa.push(['Подробная расшифровка — на листах «Маршруты» и «Выбранный маршрут».']);
   aoa.push(['HS-код и ставку пошлины перед подачей декларации подтверждает таможенный брокер.']);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -163,7 +181,7 @@ function buildSummarySheet(options: ExcelReportOptions, rows: RouteRow[]) {
   return ws;
 }
 
-function buildRoutesSheet(rows: RouteRow[], options: ExcelReportOptions) {
+function buildRoutesSheet(rows: RouteRow[], options: ExcelReportOptions, extra: ExtraExpensesTotals) {
   const header = [
     '№',
     'Выбран',
@@ -186,6 +204,7 @@ function buildRoutesSheet(rows: RouteRow[], options: ExcelReportOptions) {
     'Продукт, ₽',
     'Пошлина, ₽',
     'НДС импорта, ₽',
+    'Доп. расходы, ₽',
     'ЛЕДЖЕД ИТОГО, ₽',
     '₽/м²',
     '₽/кг',
@@ -195,8 +214,12 @@ function buildRoutesSheet(rows: RouteRow[], options: ExcelReportOptions) {
   const sorted = [...rows].sort((a, b) => a.landed.totalPerM2 - b.landed.totalPerM2);
   const aoa: (string | number | null)[][] = [header];
 
+  const m2 = options.product.containerM2;
+  const kg = options.product.containerWeightKg;
+
   sorted.forEach((row, i) => {
     const q = row.quote;
+    const grand = row.landed.totalRUB + extra.totalRub;
     aoa.push([
       i + 1,
       q.id === options.selectedQuoteId ? '✓' : '',
@@ -219,22 +242,23 @@ function buildRoutesSheet(rows: RouteRow[], options: ExcelReportOptions) {
       row.landed.productRUB,
       row.landed.customsRUB,
       row.landed.importVatRUB,
-      row.landed.totalRUB,
-      row.landed.totalPerM2,
-      row.landed.totalPerKg,
+      extra.totalRub,
+      grand,
+      m2 > 0 ? Math.round(grand / m2) : 0,
+      kg > 0 ? Math.round(grand / kg) : 0,
       i + 1,
     ]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  setCols(ws, [4, 8, 20, 12, 16, 26, 62, 12, 10, 14, 18, 14, 14, 12, 12, 12, 16, 18, 14, 14, 14, 18, 12, 12, 12]);
+  setCols(ws, [4, 8, 20, 12, 16, 26, 62, 12, 10, 14, 18, 14, 14, 12, 12, 12, 16, 18, 14, 14, 14, 16, 18, 12, 12, 12]);
   applyNumberFormat(ws, [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
   applyNumberFormat(ws, [23, 24], MONEY2);
   ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: header.length - 1 } }) };
   return ws;
 }
 
-function buildSelectedSheet(row: RouteRow | undefined, options: ExcelReportOptions) {
+function buildSelectedSheet(row: RouteRow | undefined, options: ExcelReportOptions, extra: ExtraExpensesTotals) {
   const aoa: (string | number | null)[][] = [];
 
   if (!row) {
@@ -298,9 +322,38 @@ function buildSelectedSheet(row: RouteRow | undefined, options: ExcelReportOptio
     money(row.landed.serviceVatRUB / options.product.containerM2),
     `${q.vatRate}% от Ж/Д, автовывоза, комиссии, терминала и перевеса`,
   ]);
-  aoa.push(['ИТОГО ЛАНДЕД-КОСТ', row.landed.totalRUB, row.landed.totalPerM2, 'с НДС']);
+
+  // Дополнительные расходы — по каждой включённой статье
+  const activeExtras = (options.extraExpenses ?? []).filter(e => e.enabled && e.amountRub > 0);
+  if (extra.totalRub > 0) {
+    activeExtras.forEach(e => {
+      const vatPart = e.vat ? Math.round((e.amountRub * q.vatRate) / (100 + q.vatRate)) : 0;
+      aoa.push([
+        `в т.ч. ${e.name}`,
+        money(e.amountRub),
+        money(e.amountRub / options.product.containerM2),
+        e.vat
+          ? `с НДС, в т.ч. НДС ${vatPart} ₽ · вне таможенной базы`
+          : 'без НДС · вне таможенной базы',
+      ]);
+    });
+    aoa.push([
+      'Дополнительные расходы (итого)',
+      extra.totalRub,
+      money(extra.totalRub / options.product.containerM2),
+      `вне таможенной базы; в т.ч. НДС ${extra.vatRub} ₽`,
+    ]);
+  }
+
+  const grandTotalRUB = row.landed.totalRUB + extra.totalRub;
+  aoa.push([
+    'ИТОГО ЛАНДЕД-КОСТ',
+    grandTotalRUB,
+    money(grandTotalRUB / options.product.containerM2),
+    'с НДС',
+  ]);
   aoa.push([]);
-  aoa.push(['Справочно, ₽/кг', row.landed.totalPerKg]);
+  aoa.push(['Справочно, ₽/кг', money(grandTotalRUB / options.product.containerWeightKg)]);
   aoa.push(['Площадь контейнера, м²', options.product.containerM2]);
   aoa.push(['Вес контейнера, кг', options.product.containerWeightKg]);
 
@@ -368,7 +421,7 @@ function buildRawRatesSheet(rows: RouteRow[]) {
   return ws;
 }
 
-function buildMethodSheet(options: ExcelReportOptions) {
+function buildMethodSheet(options: ExcelReportOptions, extra: ExtraExpensesTotals) {
   const aoa: (string | number | null)[][] = [
     ['МЕТОДИКА РАСЧЁТА'],
     [],
@@ -380,7 +433,13 @@ function buildMethodSheet(options: ExcelReportOptions) {
     ['4. Импортный НДС', `(таможенная база + пошлина) × ${options.product.vatRate}%`],
     ['5. НДС на российские услуги', 'ставка перевозчика × (Ж/Д + автовывоз + комиссия + терминал + перевес)'],
     ['6. Перевес', 'ceil(вес груза − включённый тоннаж) × ставка за тонну'],
-    ['7. Ландед-кост', 'продукт + пошлина + фрахт + автовывоз + комиссия/терминал + перевес + НДС'],
+    [
+      '7. Дополнительные расходы',
+      extra.totalRub > 0
+        ? `агентское, покупка валюты, ТЭО = ${extra.totalRub} ₽ (с НДС, в т.ч. НДС ${extra.vatRub} ₽). Входят в итог, но НЕ входят в таможенную базу — пошлина и импортный НДС от них не растут.`
+        : 'не заполнены — в расчёт не входят',
+    ],
+    ['8. Ландед-кост', 'продукт + пошлина + фрахт + автовывоз + комиссия/терминал + перевес + НДС + доп. расходы'],
     [],
     ['ОГРАНИЧЕНИЯ'],
     ['· Ставки взяты из введённых данных экспедиторов и не проверяются автоматически.'],
@@ -403,13 +462,15 @@ export function buildLandedCostWorkbook(options: ExcelReportOptions): XLSX.WorkB
 
   const rows = buildRouteRows(options);
   const selected = rows.find(r => r.quote.id === options.selectedQuoteId) ?? null;
+  const vatRate = selected?.quote.vatRate;
+  const extra = calculateExtraExpenses(options.extraExpenses ?? [], vatRate);
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildSummarySheet(options, rows), 'Сводка');
-  XLSX.utils.book_append_sheet(wb, buildRoutesSheet(rows, options), 'Маршруты');
-  XLSX.utils.book_append_sheet(wb, buildSelectedSheet(selected ?? undefined, options), 'Выбранный маршрут');
+  XLSX.utils.book_append_sheet(wb, buildSummarySheet(options, rows, extra), 'Сводка');
+  XLSX.utils.book_append_sheet(wb, buildRoutesSheet(rows, options, extra), 'Маршруты');
+  XLSX.utils.book_append_sheet(wb, buildSelectedSheet(selected ?? undefined, options, extra), 'Выбранный маршрут');
   XLSX.utils.book_append_sheet(wb, buildRawRatesSheet(rows), 'Исходные ставки');
-  XLSX.utils.book_append_sheet(wb, buildMethodSheet(options), 'Методика');
+  XLSX.utils.book_append_sheet(wb, buildMethodSheet(options, extra), 'Методика');
   return wb;
 }
 

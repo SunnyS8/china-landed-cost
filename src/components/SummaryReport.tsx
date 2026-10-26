@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ForwarderQuote, ExchangeRates, ProductQuote } from '../types/logistics';
+import { ForwarderQuote, ExchangeRates, ProductQuote, ExtraExpense } from '../types/logistics';
 import { calculateQuoteCost, formatUSD, formatRUB } from '../utils/calculations';
 import { downloadLandedCostExcel } from '../utils/excelReport';
 import { 
@@ -24,14 +24,15 @@ interface Props {
   rateDate?: string | null;
   rateSource?: 'cbr' | 'cache' | 'manual';
   selectedQuoteId?: string | null;
+  extraExpenses?: ExtraExpense[];
 }
 
-export const SummaryReport: React.FC<Props> = ({ quotes, rates, reportDate, product, rateDate, rateSource, selectedQuoteId }) => {
+export const SummaryReport: React.FC<Props> = ({ quotes, rates, reportDate, product, rateDate, rateSource, selectedQuoteId, extraExpenses = [] }) => {
   const [copied, setCopied] = useState(false);
 
   const handleExcel = () => {
     try {
-      downloadLandedCostExcel({ product, quotes, rates, reportDate, rateDate, rateSource, selectedQuoteId });
+      downloadLandedCostExcel({ product, quotes, rates, reportDate, rateDate, rateSource, selectedQuoteId, extraExpenses });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Не удалось сформировать Excel-отчёт');
     }
