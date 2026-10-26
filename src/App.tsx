@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { ExchangeRates, ForwarderQuote, ProductQuote } from './types/logistics';
 import { exportAllData, getHistory, importAllData, normalizeQuotes, ParsedSnapshot, compareNewToLast, PriceChange } from './utils/storage';
-import { fetchCbrRates, DEFAULT_RATES } from './utils/cbrRate';
+import { fetchCbrRates, formatIsoRu, todayIso, DEFAULT_RATES } from './utils/cbrRate';
 import { DEMO_FORWARDER_QUOTES } from './data/demoQuotes';
 import { LogisticsTable } from './components/LogisticsTable';
 import { RouteMap } from './components/RouteMap';
@@ -73,8 +73,7 @@ export default function App() {
   const [reportDate, setReportDate] = useState<string>(() => {
     const saved = localStorage.getItem('logistics_report_date');
     if (saved) return saved;
-    const today = new Date().toISOString().split('T')[0];
-    return today;
+    return todayIso();
   });
 
   // Quotes state
@@ -125,8 +124,9 @@ export default function App() {
   }, [product]);
 
   // Auto-fetch CBR exchange rates for the selected date
-  const [rateSource, setRateSource] = useState<'cbr' | 'manual'>('cbr');
+  const [rateSource, setRateSource] = useState<'cbr' | 'cache' | 'manual'>('cbr');
   const [rateError, setRateError] = useState<string | null>(null);
+  const [rateDate, setRateDate] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,11 +135,14 @@ export default function App() {
       .then(r => {
         if (cancelled) return;
         setRates({ usdRub: r.usdRub, eurRub: r.eurRub, cnyRub: r.cnyRub });
-        setRateSource('cbr');
+        setRateDate(r.date);
+        setRateSource(r.source);
+        if (r.stale) setRateError('Курс ЦБ из кэша: обновить не удалось');
       })
       .catch(() => {
         if (cancelled) return;
-        setRateError('Не удалось получить курс ЦБ, введите вручную');
+        setRateDate(null);
+        setRateError('Не удалось получить курс ЦБ на эту дату, введите вручную');
         setRateSource('manual');
       });
     return () => { cancelled = true; };
@@ -150,9 +153,14 @@ export default function App() {
     fetchCbrRates(reportDate)
       .then(r => {
         setRates({ usdRub: r.usdRub, eurRub: r.eurRub, cnyRub: r.cnyRub });
-        setRateSource('cbr');
+        setRateDate(r.date);
+        setRateSource(r.source);
       })
-      .catch(() => setRateError('Не удалось получить курс ЦБ'));
+      .catch(() => {
+        setRateDate(null);
+        setRateSource('manual');
+        setRateError('Не удалось получить курс ЦБ');
+      });
   };
 
   const handleAddQuote = (newQuote: ForwarderQuote) => {
@@ -279,9 +287,16 @@ export default function App() {
                 <span className="text-slate-600">·</span>
                 <span className="text-slate-300">CNY:</span>
                 <span className="font-mono font-bold text-white">{rates.cnyRub.toFixed(2)} ₽</span>
-                {rateSource === 'cbr' && (
-                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 font-semibold">
-                    ЦБ
+                {rateSource !== 'manual' && rateDate ? (
+                  <span
+                    title={`Курс ЦБ РФ на ${formatIsoRu(rateDate)}${rateDate !== reportDate ? ` (ближайший торговый день к ${formatIsoRu(reportDate)})` : ''}${rateSource === 'cache' ? '. Данные из локального кэша' : ''}`}
+                    className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 font-semibold"
+                  >
+                    {rateSource === 'cbr' ? 'ЦБ' : 'кэш'} · {formatIsoRu(rateDate)}
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/20 font-semibold">
+                    курс не загружен
                   </span>
                 )}
                 <button
@@ -294,7 +309,14 @@ export default function App() {
               </div>
               <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700/80">
                 <Calendar className="w-4 h-4 text-blue-400" />
-                <span className="text-slate-300">{reportDate}</span>
+                <input
+                  type="date"
+                  value={reportDate}
+                  onChange={e => setReportDate(e.target.value)}
+                  aria-label="Дата расчёта"
+                  title="Дата расчёта — курс ЦБ подтягивается на эту дату"
+                  className="bg-transparent text-slate-200 text-xs font-mono outline-hidden [color-scheme:dark]"
+                />
               </div>
               <button
                 onClick={() => setIsNotificationsOpen(v => !v)}
@@ -462,6 +484,10 @@ export default function App() {
               product={product}
               selectedQuote={selectedQuote}
               rates={rates}
+              rateDate={rateDate}
+              rateSource={rateSource}
+              reportDate={reportDate}
+              onDateChange={setReportDate}
               quotes={quotes}
               onSelectQuote={setSelectedQuote}
               onAddQuote={() => setIsAddModalOpen(true)}

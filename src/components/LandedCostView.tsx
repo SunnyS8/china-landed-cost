@@ -1,19 +1,25 @@
 import React from 'react';
 import { ProductQuote, ForwarderQuote, ExchangeRates, LandedCost } from '../types/logistics';
 import { calculateLandedCost, calculateQuoteCost, formatRUB, getLandedCostInputError, toRub } from '../utils/calculations';
-import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Plus, Upload } from 'lucide-react';
+import { formatHsCode, findHsCode } from '../utils/hsCode';
+import { formatIsoRu } from '../utils/cbrRate';
+import { CheckCircle2, Truck, Package, FileText, CreditCard, TrendingUp, DollarSign, Weight, ArrowRight, Plus, Upload, CalendarDays } from 'lucide-react';
 
 interface Props {
   product: ProductQuote;
   selectedQuote: ForwarderQuote | null;
   rates: ExchangeRates;
+  rateDate?: string | null;
+  rateSource?: 'cbr' | 'cache' | 'manual';
+  reportDate?: string;
+  onDateChange?: (date: string) => void;
   quotes: ForwarderQuote[];
   onSelectQuote: (quote: ForwarderQuote | null) => void;
   onAddQuote: () => void;
   onImportQuotes: () => void;
 }
 
-export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, quotes, onSelectQuote, onAddQuote, onImportQuotes }) => {
+export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates, rateDate, rateSource, reportDate, onDateChange, quotes, onSelectQuote, onAddQuote, onImportQuotes }) => {
   if (!selectedQuote) {
     return (
       <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
@@ -116,13 +122,31 @@ export const LandedCostView: React.FC<Props> = ({ product, selectedQuote, rates,
               3. Итоговая себестоимость
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              {product.supplier} · {product.hsCode}
+              {product.supplier} · HS {formatHsCode(product.hsCode) || '—'}
+              {findHsCode(product.hsCode)?.title ? ` · ${findHsCode(product.hsCode)?.title}` : ''}
             </p>
           </div>
           <div className="text-right">
             <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
               Курсы: USD {rates.usdRub.toFixed(2)} · CNY {rates.cnyRub.toFixed(2)}
             </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              {rateDate
+                ? `${rateSource === 'cache' ? 'Курс ЦБ из кэша' : 'Курс ЦБ'} на ${formatIsoRu(rateDate)}`
+                : 'Курс ЦБ не загружен — проверьте дату расчёта'}
+            </div>
+            {reportDate && onDateChange && (
+              <label className="mt-1.5 inline-flex items-center justify-end gap-1.5 text-[11px] font-semibold text-slate-600">
+                <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+                Дата расчёта
+                <input
+                  type="date"
+                  value={reportDate}
+                  onChange={e => onDateChange(e.target.value)}
+                  className="px-2 py-1 text-[11px] font-normal border border-slate-300 rounded-md bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 outline-hidden"
+                />
+              </label>
+            )}
             <div className="text-xs text-slate-400 mt-0.5">
               {selectedQuote.forwarderName} → {selectedQuote.destination} ({selectedQuote.transitDaysMin}-{selectedQuote.transitDaysMax} дн.)
             </div>

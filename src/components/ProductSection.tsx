@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ProductQuote } from '../types/logistics';
-import { DollarSign, Package, Weight, Container, Info, FileText } from 'lucide-react';
+import { DollarSign, Package, Weight, Container, Info, FileText, AlertTriangle, BookmarkPlus, Check, Trash2 } from 'lucide-react';
+import { findHsCode, formatHsCode, normalizeHsCode, removeCustomHsCode, saveCustomHsCode, validateHsCode, isCustomHsCode } from '../utils/hsCode';
 
 interface Props {
   product: ProductQuote;
@@ -22,11 +23,48 @@ const DEFAULT_PRODUCT: ProductQuote = {
 
 export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [hsTouched, setHsTouched] = useState(false);
+  const [hsVersion, setHsVersion] = useState(0);
+
   const invalidContainerM2 = !Number.isFinite(product.containerM2) || product.containerM2 <= 0;
   const invalidContainerWeight = !Number.isFinite(product.containerWeightKg) || product.containerWeightKg <= 0;
 
   const update = (patch: Partial<ProductQuote>) => {
     onChange({ ...product, ...patch });
+  };
+
+  const hsCode = normalizeHsCode(product.hsCode);
+  const hsError = validateHsCode(hsCode);
+  const hsEntry = useMemo(() => findHsCode(hsCode), [hsCode, hsVersion]);
+  const hsCustom = useMemo(() => isCustomHsCode(hsCode), [hsCode, hsVersion]);
+  const canApplyDuty = hsEntry?.dutyRate != null && hsEntry.dutyRate !== product.customsRate;
+  const canRemember = hsEntry?.dutyRate == null && !hsError;
+
+  const handleHsChange = (raw: string) => {
+    update({ hsCode: normalizeHsCode(raw) });
+  };
+
+  const applyDuty = () => {
+    if (hsEntry?.dutyRate == null) return;
+    update({ customsRate: hsEntry.dutyRate, ...(hsEntry.vatRate != null ? { vatRate: hsEntry.vatRate } : {}) });
+  };
+
+  const rememberCode = () => {
+    if (hsError) return;
+    const entry = hsEntry;
+    saveCustomHsCode({
+      code: hsCode,
+      title: entry?.title ?? `Код ${formatHsCode(hsCode)}`,
+      dutyRate: product.customsRate,
+      vatRate: product.vatRate,
+      warning: entry?.dutyRate == null ? undefined : entry?.warning,
+    });
+    setHsVersion(v => v + 1);
+  };
+
+  const forgetCode = () => {
+    removeCustomHsCode(hsCode);
+    setHsVersion(v => v + 1);
   };
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden focus:border-blue-500 bg-white";
@@ -63,14 +101,81 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
           />
         </div>
         <div>
-          <label className={labelClass}>HS Code</label>
+          <label className={labelClass}>HS Code (ТН ВЭД)</label>
           <input
             type="text"
-            value={product.hsCode}
-            onChange={e => update({ hsCode: e.target.value })}
-            className={inputClass}
+            inputMode="numeric"
+            autoComplete="off"
+            value={hsCode}
+            onChange={e => handleHsChange(e.target.value)}
+            onBlur={() => setHsTouched(true)}
+            aria-invalid={hsTouched && hsError !== null}
+            aria-describedby="hs-code-hint"
+            className={`${inputClass} font-mono tracking-wide ${hsTouched && hsError ? 'border-red-500' : ''}`}
             placeholder="8708299000"
           />
+          <div id="hs-code-hint" className="mt-1 space-y-1">
+            {hsTouched && hsError && (
+              <p className="text-xs text-red-600" role="alert">{hsError}</p>
+            )}
+            {hsCode.length === 10 && (
+              <p className="text-[11px] text-slate-500 font-mono">{formatHsCode(hsCode)}</p>
+            )}
+            {hsEntry && (
+              <div className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[11px] leading-snug">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-slate-800">{hsEntry.title}</span>
+                  {hsEntry.dutyRate != null ? (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">
+                      пошлина {hsEntry.dutyRate}%
+                    </span>
+                  ) : (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
+                      ставка не задана
+                    </span>
+                  )}
+                </div>
+                {hsEntry.warning && (
+                  <p className="mt-1 flex items-start gap-1.5 text-amber-800">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                    <span>{hsEntry.warning}</span>
+                  </p>
+                )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {canApplyDuty && (
+                    <button
+                      onClick={applyDuty}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                    >
+                      <Check className="w-3 h-3" />
+                      Применить {hsEntry.dutyRate}%
+                    </button>
+                  )}
+                  {hsEntry.source && <span className="text-slate-500">{hsEntry.source}</span>}
+                  {hsCustom && (
+                    <button
+                      onClick={forgetCode}
+                      className="inline-flex items-center gap-1 text-slate-500 hover:text-red-600 font-semibold"
+                      title="Удалить код из пользовательского справочника"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      убрать
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {canRemember && (
+              <button
+                onClick={rememberCode}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900"
+                title="Сохранить код и текущую ставку пошлины в справочник браузера"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                Запомнить код со ставкой {product.customsRate}%
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -206,7 +311,7 @@ export const ProductSection: React.FC<Props> = ({ product, onChange }) => {
         <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <span>
           Импортный НДС считается по ставке товара, НДС на российские услуги — по ставке выбранного перевозчика.
-          Курс ЦБ используется для пересчёта юаней в рубли.
+          Курс ЦБ подтягивается на дату расчёта. Ставку пошлины можно взять из справочника по HS-коду — итоговый код и ставку подтверждает брокер.
         </span>
       </div>
     </div>
